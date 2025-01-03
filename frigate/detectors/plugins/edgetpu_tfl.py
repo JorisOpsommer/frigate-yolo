@@ -59,10 +59,14 @@ class EdgeTpuTfl(DetectionApi):
     def detect_raw(self, tensor_input):
         self.interpreter.set_tensor(self.tensor_input_details[0]["index"], tensor_input)
         self.interpreter.invoke()
+        print(f"tensor output details{self.tensor_output_details}")
 
         boxes = self.interpreter.tensor(self.tensor_output_details[0]["index"])()[0]
         class_ids = self.interpreter.tensor(self.tensor_output_details[1]["index"])()[0]
         scores = self.interpreter.tensor(self.tensor_output_details[2]["index"])()[0]
+        print(f"boxes{boxes}")
+        print(f"class_ids{class_ids}")
+        print(f"scores{scores}")
         count = int(
             self.interpreter.tensor(self.tensor_output_details[3]["index"])()[0]
         )

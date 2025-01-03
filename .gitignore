@@ -6,7 +6,6 @@ debug
 !.vscode/launch.json
 config/*
 !config/*.example
-models
 *.mp4
 *.db
 *.csv
