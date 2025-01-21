@@ -4,7 +4,6 @@
 debug
 .vscode/*
 !.vscode/launch.json
-config/*
 !config/*.example
 *.mp4
 *.db

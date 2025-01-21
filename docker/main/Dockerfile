@@ -268,6 +268,7 @@ FROM scratch AS rootfs
 
 WORKDIR /opt/frigate/
 COPY frigate frigate/
+
 COPY migrations migrations/
 COPY --from=web-build /work/dist/ web/
 

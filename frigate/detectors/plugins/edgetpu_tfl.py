@@ -57,32 +57,64 @@ class EdgeTpuTfl(DetectionApi):
         self.model_type = detector_config.model.model_type
 
     def detect_raw(self, tensor_input):
+        scale, zero_point = self.tensor_input_details[0]["quantization"]
+        tensor_input = (
+            (tensor_input - scale * zero_point * 255) * (1.0 / (scale * 255))
+        ).astype(self.tensor_input_details[0]["dtype"])
+
         self.interpreter.set_tensor(self.tensor_input_details[0]["index"], tensor_input)
         self.interpreter.invoke()
-        print(f"tensor output details{self.tensor_output_details}")
 
-        boxes = self.interpreter.tensor(self.tensor_output_details[0]["index"])()[0]
-        class_ids = self.interpreter.tensor(self.tensor_output_details[1]["index"])()[0]
-        scores = self.interpreter.tensor(self.tensor_output_details[2]["index"])()[0]
-        print(f"boxes{boxes}")
-        print(f"class_ids{class_ids}")
-        print(f"scores{scores}")
-        count = int(
-            self.interpreter.tensor(self.tensor_output_details[3]["index"])()[0]
+        tensor_output = self.interpreter.get_tensor(
+            self.tensor_output_details[0]["index"]
         )
+        # Dequantize the output (if needed later)
+        tensor_output = (tensor_output.astype(np.float32) - zero_point) * scale
 
-        detections = np.zeros((20, 6), np.float32)
+        model_input_shape = self.tensor_input_details[0]["shape"]
+        tensor_output[:, [0, 2]] *= model_input_shape[2]
+        tensor_output[:, [1, 3]] *= model_input_shape[1]
 
-        for i in range(count):
-            if scores[i] < 0.4 or i == 20:
-                break
-            detections[i] = [
-                class_ids[i],
-                float(scores[i]),
-                boxes[i][0],
-                boxes[i][1],
-                boxes[i][2],
-                boxes[i][3],
-            ]
-
+        # Initialize detections array (20 detections with 6 parameters each)
+        score_threshold = 0.5
+        nms_threshold = 0.5
+        box_count = 20
+        model_box_count = tensor_output.shape[2]
+        probs = tensor_output[0, 4:, :]
+        all_ids = np.argmax(probs, axis=0)
+        all_confidences = probs.T[np.arange(model_box_count), all_ids]
+        all_boxes = tensor_output[0, 0:4, :].T
+        mask = all_confidences > score_threshold
+        class_ids = all_ids[mask]
+        confidences = all_confidences[mask]
+        cx, cy, w, h = all_boxes[mask].T
+        if model_input_shape[3] == 3:
+            scale_y, scale_x = 1 / model_input_shape[1], 1 / model_input_shape[2]
+        else:
+            scale_y, scale_x = 1 / model_input_shape[2], 1 / model_input_shape[3]
+        detections = np.stack(
+            (
+                class_ids,
+                confidences,
+                scale_y * (cy - h / 2),
+                scale_x * (cx - w / 2),
+                scale_y * (cy + h / 2),
+                scale_x * (cx + w / 2),
+            ),
+            axis=1,
+        )
+        if detections.shape[0] > box_count:
+            # if too many detections, do nms filtering to suppress overlapping boxes
+            boxes = np.stack((cx - w / 2, cy - h / 2, w, h), axis=1)
+            indexes = cv2.dnn.NMSBoxes(
+                boxes, confidences, score_threshold, nms_threshold
+            )
+            detections = detections[indexes]
+            # if still too many, trim the rest by confidence
+            if detections.shape[0] > box_count:
+                detections = detections[
+                    np.argpartition(detections[:, 1], -box_count)[-box_count:]
+                ]
+            detections = detections.copy()
+        detections.resize((box_count, 6))
         return detections

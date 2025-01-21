@@ -2,14 +2,13 @@ README.md
 docs/
 .gitignore
 debug
-config/
-*.pyc
+_.pyc
 .git
 core
-*.mp4
-*.jpg
-*.db
-*.ts
+_.mp4
+_.jpg
+_.db
+\*.ts
 
 web/dist/
 web/node_modules/
