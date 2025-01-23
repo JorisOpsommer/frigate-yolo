@@ -92,6 +92,7 @@ class EdgeTpuTfl(DetectionApi):
             scale_y, scale_x = 1 / model_input_shape[1], 1 / model_input_shape[2]
         else:
             scale_y, scale_x = 1 / model_input_shape[2], 1 / model_input_shape[3]
+
         detections = np.stack(
             (
                 class_ids,
@@ -117,4 +118,9 @@ class EdgeTpuTfl(DetectionApi):
                 ]
             detections = detections.copy()
         detections.resize((box_count, 6))
+
+        for i in detections:
+            if i[1] == 0:
+                i[0] = -1
+
         return detections
