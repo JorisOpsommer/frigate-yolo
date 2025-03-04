@@ -105,18 +105,14 @@ class EdgeTpuTfl(DetectionApi):
             axis=1,
         )
         if detections.shape[0] > box_count:
-            # if too many detections, do nms filtering to suppress overlapping boxes
-            boxes = np.stack((cx - w / 2, cy - h / 2, w, h), axis=1)
-            indexes = cv2.dnn.NMSBoxes(
-                boxes, confidences, score_threshold, nms_threshold
-            )
-            detections = detections[indexes]
-            # if still too many, trim the rest by confidence
-            if detections.shape[0] > box_count:
-                detections = detections[
-                    np.argpartition(detections[:, 1], -box_count)[-box_count:]
-                ]
-            detections = detections.copy()
+            # if too many detections, do trimming to suppress overlapping boxes
+            trimmedArray = np.zeros((box_count, 6), dtype=detections.dtype)
+            trimmedArray[:, 0] = -1
+            for i in range(box_count):
+                if i < len(detections):
+                    trimmedArray[i] = detections[i]
+            detections = trimmedArray.copy()
+
         detections.resize((box_count, 6))
 
         for i in detections:
