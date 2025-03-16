@@ -76,8 +76,7 @@ class EdgeTpuTfl(DetectionApi):
         tensor_output[:, [1, 3]] *= model_input_shape[1]
 
         # Initialize detections array (20 detections with 6 parameters each)
-        score_threshold = 0.5
-        nms_threshold = 0.5
+        score_threshold = 0.25
         box_count = 20
         model_box_count = tensor_output.shape[2]
         probs = tensor_output[0, 4:, :]
@@ -119,8 +118,14 @@ class EdgeTpuTfl(DetectionApi):
             detections = detections.copy()
         detections.resize((box_count, 6))
 
+        # If score is 0 then we want to set the detection to nothing (-1)
+        # Multiply detection with 2 to have a better score
         for i in detections:
             if i[1] == 0:
                 i[0] = -1
+            else:
+                i[1] *= 2
+                if i[1] >= 1:
+                    i[1] = 0.99
 
         return detections
