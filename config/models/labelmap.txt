@@ -1,5 +1,6 @@
 0  bird
 1  cat
 2  dog
-3  person
-4  postal van
+3  package
+4  person
+5  postal van
