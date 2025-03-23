@@ -76,7 +76,7 @@ class EdgeTpuTfl(DetectionApi):
         tensor_output[:, [1, 3]] *= model_input_shape[1]
 
         # Initialize detections array (20 detections with 6 parameters each)
-        score_threshold = 0.25
+        score_threshold = 0.3
         box_count = 20
         model_box_count = tensor_output.shape[2]
         probs = tensor_output[0, 4:, :]
@@ -96,10 +96,10 @@ class EdgeTpuTfl(DetectionApi):
             (
                 class_ids,
                 confidences,
-                scale_y * (cy - h / 2),
-                scale_x * (cx - w / 2),
                 scale_y * (cy + h / 2),
                 scale_x * (cx + w / 2),
+                scale_y * (cy + h / 2) * 2,
+                scale_x * (cx + w / 2) * 2,
             ),
             axis=1,
         )
