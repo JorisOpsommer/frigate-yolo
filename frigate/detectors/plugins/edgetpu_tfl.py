@@ -3,7 +3,6 @@ import logging
 import numpy as np
 from pydantic import Field
 from typing_extensions import Literal
-
 from frigate.detectors.detection_api import DetectionApi
 from frigate.detectors.detector_config import BaseDetectorConfig
 
@@ -103,19 +102,12 @@ class EdgeTpuTfl(DetectionApi):
             ),
             axis=1,
         )
+        # if too many detections, do nms filtering to suppress overlapping boxes
         if detections.shape[0] > box_count:
-            # if too many detections, do nms filtering to suppress overlapping boxes
-            boxes = np.stack((cx - w / 2, cy - h / 2, w, h), axis=1)
-            indexes = cv2.dnn.NMSBoxes(
-                boxes, confidences, score_threshold, nms_threshold
-            )
-            detections = detections[indexes]
-            # if still too many, trim the rest by confidence
-            if detections.shape[0] > box_count:
-                detections = detections[
-                    np.argpartition(detections[:, 1], -box_count)[-box_count:]
-                ]
-            detections = detections.copy()
+            detections = detections[
+                np.argpartition(detections[:, 1], -box_count)[-box_count:]
+            ]
+        detections = detections.copy()
         detections.resize((box_count, 6))
 
         # If score is 0 then we want to set the detection to nothing (-1)
